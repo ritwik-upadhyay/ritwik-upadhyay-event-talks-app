@@ -47,7 +47,8 @@ const elements = {
     
     charCount: document.getElementById('char-count'),
     progressCircle: document.querySelector('.progress-ring__circle'),
-    sendTweetBtn: document.getElementById('send-tweet-btn')
+    sendTweetBtn: document.getElementById('send-tweet-btn'),
+    exportCsvBtn: document.getElementById('export-csv-btn')
 };
 
 // Initialize app
@@ -165,6 +166,11 @@ function setupEventListeners() {
         const twitterUrl = `https://twitter.com/intent/tweet?text=${encodedText}`;
         window.open(twitterUrl, '_blank');
     });
+    
+    // Export to CSV button
+    if (elements.exportCsvBtn) {
+        elements.exportCsvBtn.addEventListener('click', exportToCsv);
+    }
 }
 
 // Show/Hide Loading and States
@@ -266,16 +272,35 @@ function renderFeed() {
                         <button class="action-tweet-btn" title="Tweet this update">
                             <i class="fa-brands fa-twitter"></i> Tweet
                         </button>
+                        <button class="action-copy-btn" title="Copy raw text to clipboard">
+                            <i class="fa-solid fa-copy"></i> Copy
+                        </button>
                     </div>
                 </div>
             `;
             
             // Card selection click
             card.addEventListener('click', (e) => {
-                // If they clicked the docs external link, don't trigger selected card styling
-                if (e.target.closest('.action-link')) return;
+                // If they clicked the docs external link or copy button, don't trigger selection
+                if (e.target.closest('.action-link') || e.target.closest('.action-copy-btn')) return;
                 
                 selectUpdate(item);
+            });
+            
+            // Clipboard Copy Event Listener
+            const copyBtn = card.querySelector('.action-copy-btn');
+            copyBtn.addEventListener('click', (e) => {
+                e.stopPropagation(); // Prevent triggering card selection
+                navigator.clipboard.writeText(item.text).then(() => {
+                    copyBtn.classList.add('copied');
+                    copyBtn.innerHTML = `<i class="fa-solid fa-check"></i> Copied!`;
+                    setTimeout(() => {
+                        copyBtn.classList.remove('copied');
+                        copyBtn.innerHTML = `<i class="fa-solid fa-copy"></i> Copy`;
+                    }, 1500);
+                }).catch(err => {
+                    console.error('Failed to copy text: ', err);
+                });
             });
             
             groupDiv.appendChild(card);
@@ -394,4 +419,45 @@ function updateCharCounter() {
         elements.sendTweetBtn.style.opacity = '1';
         elements.sendTweetBtn.style.cursor = 'pointer';
     }
+}
+
+// Export currently filtered release notes to CSV file
+function exportToCsv() {
+    if (state.filteredUpdates.length === 0) return;
+    
+    const headers = ['Date', 'Category', 'Description', 'Link'];
+    const rows = state.filteredUpdates.map(item => [
+        item.date,
+        item.type,
+        item.text,
+        item.link
+    ]);
+    
+    const escapeCsv = (val) => {
+        if (val === undefined || val === null) return '';
+        const strVal = String(val);
+        const escaped = strVal.replace(/"/g, '""');
+        if (escaped.includes(',') || escaped.includes('"') || escaped.includes('\n') || escaped.includes('\r')) {
+            return `"${escaped}"`;
+        }
+        return strVal;
+    };
+    
+    const csvContent = [
+        headers.map(escapeCsv).join(','),
+        ...rows.map(row => row.map(escapeCsv).join(','))
+    ].join('\r\n');
+    
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    
+    const dateStr = new Date().toISOString().slice(0, 10);
+    link.setAttribute("download", `bigquery_release_notes_${dateStr}.csv`);
+    link.style.visibility = 'hidden';
+    
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
 }

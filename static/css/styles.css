@@ -871,6 +871,27 @@ a:hover {
     color: var(--twitter);
 }
 
+.action-copy-btn {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    font-size: 12px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-family: var(--font-body);
+    transition: color var(--transition-speed) ease;
+}
+
+.action-copy-btn:hover {
+    color: var(--primary);
+}
+
+.action-copy-btn.copied {
+    color: var(--color-feature);
+}
+
 /* Responsive styles */
 @media (max-width: 1024px) {
     .app-content {
